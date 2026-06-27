@@ -63,27 +63,45 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
+    const hfToken = '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';
+    const url = 'https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct';
+
     try {
-      // ⏳ Server ko jagne ke liye 30 seconds ka timeout lagaya hai
       final response = await http.post(
-        Uri.parse('https://zeta-ai-backend-dsj2.onrender.com/api/chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': text}),
-      ).timeout(const Duration(seconds: 30));
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $hfToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'inputs': "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n$text<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+          'parameters': {
+            'max_new_tokens': 512,
+            'temperature': 0.7,
+          }
+        }),
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final List<dynamic> data = jsonDecode(response.body);
+        String reply = data[0]['generated_text'] ?? '';
+        
+        // Clean up Llama prompt headers if they appear in output
+        if (reply.contains("<|start_header_id|>assistant<|end_header_id|>")) {
+          reply = reply.split("<|start_header_id|>assistant<|end_header_id|>").last.trim();
+        }
+
         setState(() {
-          _messages.add({"role": "bot", "text": data['reply'] ?? 'No response'});
+          _messages.add({"role": "bot", "text": reply.isEmpty ? 'No response' : reply});
         });
       } else {
         setState(() {
-          _messages.add({"role": "bot", "text": "Server Error: Status ${response.statusCode}"});
+          _messages.add({"role": "bot", "text": "Error: Status ${response.statusCode}"});
         });
       }
     } catch (e) {
       setState(() {
-        _messages.add({"role": "bot", "text": "System Error: Server is waking up, please try again in a moment."});
+        _messages.add({"role": "bot", "text": "System Error: Connection timeout or failed."});
       });
     } finally {
       setState(() {
