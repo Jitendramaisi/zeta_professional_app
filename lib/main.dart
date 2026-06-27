@@ -64,11 +64,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
+      // ⏳ Server ko jagne ke liye 30 seconds ka timeout lagaya hai
       final response = await http.post(
         Uri.parse('https://zeta-ai-backend-dsj2.onrender.com/api/chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'message': text}),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -77,12 +78,12 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       } else {
         setState(() {
-          _messages.add({"role": "bot", "text": "Error: Server responded with status ${response.statusCode}"});
+          _messages.add({"role": "bot", "text": "Server Error: Status ${response.statusCode}"});
         });
       }
     } catch (e) {
       setState(() {
-        _messages.add({"role": "bot", "text": "System Error: Connection failed."});
+        _messages.add({"role": "bot", "text": "System Error: Server is waking up, please try again in a moment."});
       });
     } finally {
       setState(() {
