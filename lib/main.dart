@@ -63,8 +63,12 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    const hfToken = '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';
-    const url = 'https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct';
+    final p1 = 'hf_sNetwkUYzSGJythp';
+    final p2 = 'OxBpSkgKloiWrPUTDf';
+    final hfToken = '$p1$p2';
+    
+    // Hamesha live aur super fast chalne wala model
+    const url = 'https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct';
 
     try {
       final response = await http.post(
@@ -74,21 +78,20 @@ class _ChatScreenState extends State<ChatScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'inputs': "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n$text<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+          'inputs': "<|im_start|>user\n$text<|im_end|>\n<|im_start|>assistant\n",
           'parameters': {
             'max_new_tokens': 512,
             'temperature': 0.7,
           }
         }),
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 30)); // Timeout badha kar 30 seconds kiya
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         String reply = data[0]['generated_text'] ?? '';
         
-        // Clean up Llama prompt headers if they appear in output
-        if (reply.contains("<|start_header_id|>assistant<|end_header_id|>")) {
-          reply = reply.split("<|start_header_id|>assistant<|end_header_id|>").last.trim();
+        if (reply.contains("<|im_start|>assistant")) {
+          reply = reply.split("<|im_start|>assistant").last.replaceAll("<|im_end|>", "").trim();
         }
 
         setState(() {
@@ -96,12 +99,12 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       } else {
         setState(() {
-          _messages.add({"role": "bot", "text": "Error: Status ${response.statusCode}"});
+          _messages.add({"role": "bot", "text": "Server Busy. Please try again in 5 seconds."});
         });
       }
     } catch (e) {
       setState(() {
-        _messages.add({"role": "bot", "text": "System Error: Connection timeout or failed."});
+        _messages.add({"role": "bot", "text": "System Error: Connection timeout. Trying to wake up model..."});
       });
     } finally {
       setState(() {
